@@ -122,9 +122,9 @@ LOG_FILE="${LOGSDIR}/${LOG_FILE%.c}.proc-log"
 
 export KLEE=$DIR/bin/klee
 if [ "x$MFLAG" = "x-m64" ]; then
-	export KLEE_RUNTIME_LIBRARY_PATH="$DIR/lib"
+	export KLEE_RUNTIME_LIBRARY_PATH="$DIR/lib/klee/runtime"
 else
-	export KLEE_RUNTIME_LIBRARY_PATH="$DIR/lib32"
+	export KLEE_RUNTIME_LIBRARY_PATH="$DIR/lib32/klee/runtime"
 fi
 
 export LIB="$DIR/lib.c"
