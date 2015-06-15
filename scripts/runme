@@ -87,13 +87,17 @@ if [ -z "$1" ]; then
 	error
 fi
 
+# set paths
+DIR="`dirname $0`"
+export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$DIR/lib"
+export PATH="$DIR/bin:$PATH"
+
 if ! which clang >/dev/null 2>&1; then
 	echo CLANG not found >&2
 	error
 fi
 
 # args processing
-DIR="`dirname $0`"
 PROP=
 while getopts 'p:6' OPT; do
 	case "$OPT" in
@@ -127,14 +131,12 @@ else
 	export KLEE_RUNTIME_LIBRARY_PATH="$DIR/lib32/klee/runtime"
 fi
 
+# make process_set not running klee, we'll run it here
+export RUN_KLEE="no"
+
 export LIB="$DIR/lib.c"
 export LIBo="`dirname $FILE`/lib.o"
 export LIB_CFLAGS="-I$DIR/include"
-export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$DIR/lib"
-export PATH="$DIR/bin:$PATH"
-
-# make process_set not running klee, we'll run it here
-export RUN_KLEE="no"
 
 $DIR/instrument.sh "$FILE" >"$LOG_FILE" 2>&1
 $DIR/build-fix.sh "$FILE" >>"$LOG_FILE" 2>&1
