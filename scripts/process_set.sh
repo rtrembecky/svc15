@@ -76,7 +76,6 @@ fi
 for FILE in $FILES; do
 	OUT=`build_one "$FILE" "$EXIT_ON_UNKNOWN"` || exit
 
-	#echo "$KLEE $KLEE_PARAMS: $FILE" >&2
 	if [ "x$RUN_KLEE" != "xno" ]; then
 		$KLEE $KLEE_PARAMS -output-dir="$OUT-klee-out" \
 		"$OUT" || exit 1
