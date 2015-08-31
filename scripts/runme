@@ -131,12 +131,14 @@ else
 	export KLEE_RUNTIME_LIBRARY_PATH="$DIR/lib32/klee/runtime"
 fi
 
-# make process_set not running klee, we'll run it here
-export RUN_KLEE="no"
+debug "KLEE_RUNTIME_LIBRARY_PATH=$KLEE_RUNTIME_LIBRARY_PATH"
 
 export LIB="$DIR/lib.c"
 export LIBo="`dirname $FILE`/lib.o"
 export LIB_CFLAGS="-I$DIR/include"
+
+# make process_set not running klee, we'll run it here
+export RUN_KLEE="no"
 
 $DIR/instrument.sh "$FILE" >"$LOG_FILE" 2>&1
 $DIR/build-fix.sh "$FILE" >>"$LOG_FILE" 2>&1
@@ -153,6 +155,7 @@ KLEE_OUTPUT_FILE="${FILE%.c}.log"
 test -z "$KLEE_PARAMS" && KLEE_PARAMS="-optimize -max-solver-time=5 -max-time=600"
 
 # run klee
+debug "$DIR/bin/klee -output-dir=$FILE-klee-out $KLEE_PARAMS ${FILE%.c}.o"
 $DIR/bin/klee -output-dir="$FILE-klee-out" $KLEE_PARAMS "${FILE%.c}.o" 2>&1 |
 	tee $KLEE_OUTPUT_FILE |
 	while read LINE; do
