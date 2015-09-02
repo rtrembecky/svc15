@@ -157,7 +157,7 @@ $DIR/bin/klee -output-dir="$FILE-klee-out" $KLEE_PARAMS "${FILE%.c}.o" 2>&1 |
 	tee $KLEE_OUTPUT_FILE |
 		# if we run into assert, we don't need to explore
 		# all paths and can give result right now
-		if grep -i -q 'assertion failed'; then
+		if grep -i -q 'ASSERTION FAIL: verifier assertion failed'; then
 			# let this subshell return 3, so that whole
 			# command will return 3 and we can catch it
 			result FALSE 3
