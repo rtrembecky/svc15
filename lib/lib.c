@@ -6,14 +6,14 @@ void __VERIFIER_error(void)
 {
 	/* FILE and LINE will be wrong, but that doesn't matter, klee will
 	   replace this call by its own handler anyway */
-	__assert_fail("Assertion failed", __FILE__, __LINE__, __func__);
+	__assert_fail("verifier assertion failed", __FILE__, __LINE__, __func__);
 }
 
 void __VERIFIER_assert(int expr) __attribute__((weak));
 void __VERIFIER_assert(int expr)
 {
 	if (!expr)
-		__assert_fail("Assertion failed", __FILE__, __LINE__, __func__);
+		__assert_fail("verifier assertion failed", __FILE__, __LINE__, __func__);
 }
 
 void __VERIFIER_assume(int expr)
