@@ -137,9 +137,6 @@ export LIB="$DIR/lib.c"
 export LIBo="`dirname $FILE`/lib.o"
 export LIB_CFLAGS="-I$DIR/include"
 
-# make process_set not running klee, we'll run it here
-export RUN_KLEE="no"
-
 $DIR/instrument.sh "$FILE" >"$LOG_FILE" 2>&1
 $DIR/build-fix.sh "$FILE" >>"$LOG_FILE" 2>&1
 $DIR/process_set.sh "$FILE" >>"$LOG_FILE" 2>&1
