@@ -22,22 +22,19 @@
 using namespace llvm;
 
 namespace {
-  class Prepare : public ModulePass {
+  class CheckUnsupported : public FunctionPass {
     public:
       static char ID;
 
-      Prepare() : ModulePass(ID) {}
+      CheckUnsupported() : FunctionPass(ID) {}
 
-      virtual bool runOnModule(Module &M);
-
-    private:
-      bool runOnFunction(Function &F);
-      void findInitFuns(Module &M);
+      virtual bool runOnFunction(Function &F);
   };
 }
 
-static RegisterPass<Prepare> X("prepare", "Prepares the code for svcomp");
-char Prepare::ID;
+static RegisterPass<CheckUnsupported> CHCK("check-unsupported",
+                                           "check calls to unsupported functions for symbiotic");
+char CheckUnsupported::ID;
 
 static bool array_match(StringRef &name, const char **array)
 {
@@ -47,23 +44,7 @@ static bool array_match(StringRef &name, const char **array)
   return false;
 }
 
-bool Prepare::runOnFunction(Function &F) {
-  static const char *leave_calls[] = {
-    "__assert_fail",
-    "exit",
-    "sprintf",
-    "snprintf",
-    "swprintf",
-    "malloc",
-    "free",
-    "memset",
-    "memcmp",
-    "memcpy",
-    "memmove",
-    "kzalloc",
-    NULL
-  };
-
+bool CheckUnsupported::runOnFunction(Function &F) {
   static const char *unsupported_calls[] = {
     "pthread_create",
     NULL
@@ -86,32 +67,102 @@ bool Prepare::runOnFunction(Function &F) {
 
       assert(callee->hasName());
       StringRef name = callee->getName();
-      if (array_match(name, leave_calls))
-	continue;
-
       if (array_match(name, unsupported_calls)) {
-	errs() << "Prepare: call to '" << name << "' is unsupported\n";
+	errs() << "CheckUnsupported: call to '" << name << "' is unsupported\n";
 	return modified;
-      }
-
-      if (name.startswith("__VERIFIER_") || name.equals("nondet_int") ||
-		      name.equals("klee_int")) {
-//	errs() << "TADY   " << name << "\n";
-	continue;
-      }
-
-      if (callee->isDeclaration()) {
-	errs() << "Prepare: removing call to '" << name << "' (unsound)\n";
-	if (!CI->getType()->isVoidTy()) {
-//	  CI->replaceAllUsesWith(UndefValue::get(CI->getType()));
-	  CI->replaceAllUsesWith(Constant::getNullValue(CI->getType()));
-	}
-	CI->eraseFromParent();
       }
     }
   }
   return modified;
 }
+
+namespace {
+  class DeleteUndefined : public FunctionPass {
+    public:
+      static char ID;
+
+      DeleteUndefined() : FunctionPass(ID) {}
+
+      virtual bool runOnFunction(Function &F);
+  };
+}
+
+static RegisterPass<DeleteUndefined> DLTU("delete-undefined",
+                                          "delete calls to undefined functions");
+char DeleteUndefined::ID;
+
+static const char *leave_calls[] = {
+  "__assert_fail",
+  "exit",
+  "sprintf",
+  "snprintf",
+  "swprintf",
+  "malloc",
+  "free",
+  "memset",
+  "memcmp",
+  "memcpy",
+  "memmove",
+  "kzalloc",
+  NULL
+};
+
+bool DeleteUndefined::runOnFunction(Function &F)
+{
+  bool modified = false;
+  const Module *M = F.getParent();
+
+  for (inst_iterator I = inst_begin(F), E = inst_end(F); I != E;) {
+    Instruction *ins = &*I;
+    ++I;
+    if (CallInst *CI = dyn_cast<CallInst>(ins)) {
+      if (CI->isInlineAsm())
+        continue;
+
+      const Value *val = CI->getCalledValue()->stripPointerCasts();
+      const Function *callee = dyn_cast<Function>(val);
+      if (!callee || callee->isIntrinsic())
+	continue;
+
+      assert(callee->hasName());
+      StringRef name = callee->getName();
+
+      if (name.startswith("__VERIFIER_") ||
+          name.equals("nondet_int") ||
+          name.equals("klee_int") || array_match(name, leave_calls)) {
+        continue;
+      }
+
+      if (callee->isDeclaration()) {
+       errs() << "Prepare: removing call to '" << name << "' (unsound)\n";
+       if (!CI->getType()->isVoidTy()) {
+//       CI->replaceAllUsesWith(UndefValue::get(CI->getType()));
+         CI->replaceAllUsesWith(Constant::getNullValue(CI->getType()));
+       }
+       CI->eraseFromParent();
+      }
+    }
+  }
+  return modified;
+}
+
+namespace {
+  class Prepare : public ModulePass {
+    public:
+      static char ID;
+
+      Prepare() : ModulePass(ID) {}
+
+      virtual bool runOnModule(Module &M);
+
+    private:
+      void findInitFuns(Module &M);
+  };
+}
+
+static RegisterPass<Prepare> PRP("prepare",
+                                  "Prepare the code for svcomp");
+char Prepare::ID;
 
 void Prepare::findInitFuns(Module &M) {
   SmallVector<Constant *, 1> initFns;
@@ -166,12 +217,6 @@ bool Prepare::runOnModule(Module &M) {
       continue;
     GV->setInitializer(Constant::getNullValue(GV->getType()->getElementType()));
     errs() << "making " << GV->getName() << " non-extern\n";
-  }
-
-  for (llvm::Module::iterator I = M.begin(), E = M.end(); I != E; ++I) {
-    Function &F = *I;
-    if (!F.isDeclaration())
-      runOnFunction(F);
   }
 
   findInitFuns(M);
