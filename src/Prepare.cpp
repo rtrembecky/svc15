@@ -21,16 +21,15 @@
 
 using namespace llvm;
 
-namespace {
-  class CheckUnsupported : public FunctionPass {
-    public:
-      static char ID;
+class CheckUnsupported : public FunctionPass
+{
+  public:
+    static char ID;
 
-      CheckUnsupported() : FunctionPass(ID) {}
+    CheckUnsupported() : FunctionPass(ID) {}
 
-      virtual bool runOnFunction(Function &F);
-  };
-}
+    virtual bool runOnFunction(Function &F);
+};
 
 static RegisterPass<CheckUnsupported> CHCK("check-unsupported",
                                            "check calls to unsupported functions for symbiotic");
@@ -50,9 +49,6 @@ bool CheckUnsupported::runOnFunction(Function &F) {
     NULL
   };
 
-  bool modified = false;
-  const Module *M = F.getParent();
-
   for (inst_iterator I = inst_begin(F), E = inst_end(F); I != E;) {
     Instruction *ins = &*I;
     ++I;
@@ -67,13 +63,15 @@ bool CheckUnsupported::runOnFunction(Function &F) {
 
       assert(callee->hasName());
       StringRef name = callee->getName();
+
       if (array_match(name, unsupported_calls)) {
 	errs() << "CheckUnsupported: call to '" << name << "' is unsupported\n";
-	return modified;
+        errs().flush();
       }
     }
   }
-  return modified;
+
+  return false;
 }
 
 namespace {
@@ -161,7 +159,7 @@ namespace {
 }
 
 static RegisterPass<Prepare> PRP("prepare",
-                                  "Prepare the code for svcomp");
+                                 "Prepare the code for svcomp");
 char Prepare::ID;
 
 void Prepare::findInitFuns(Module &M) {
