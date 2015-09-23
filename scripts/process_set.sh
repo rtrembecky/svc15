@@ -40,7 +40,8 @@ build_one() {
 	echo "$FILE => $OUT" >&2
 
 	clang -c -g -x c $MFLAG -include $DIR/include/symbiotic.h -emit-llvm $CLANG_WARNS -O0 -o "${FILE%.c}.llvm" "$FILE" || exit 1
-	opt -load LLVMsvc13.so -prepare "${FILE%.c}.llvm" -o "${FILE%.c}.prepared" 2>"${FILE%.c}.prepare.log" || exit 1
+	opt -load LLVMsvc13.so -prepare -delete-undefined -check-unsupported\
+		 "${FILE%.c}.llvm" -o "${FILE%.c}.prepared" 2>"${FILE%.c}.prepare.log" || exit 1
 	cat "${FILE%.c}.prepare.log" >&2
 
 	if grep -q 'Prepare: call to .* is unsupported' "${FILE%.c}.prepare.log"; then
