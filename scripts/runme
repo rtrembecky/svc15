@@ -152,7 +152,7 @@ esac
 rm -rf "$FILE-klee-out"
 
 KLEE_OUTPUT_FILE="${FILE%.c}.log"
-test -z "$KLEE_PARAMS" && KLEE_PARAMS="-optimize -max-solver-time=5 -max-time=600"
+test -z "$KLEE_PARAMS" && KLEE_PARAMS="-optimize -write-paths -max-solver-time=5 -max-time=600"
 
 # run klee
 debug "$DIR/bin/klee -output-dir=$FILE-klee-out $KLEE_PARAMS ${FILE%.c}.o"
