@@ -37,6 +37,11 @@ MAKE_NONDET(float);
 MAKE_NONDET(double);
 MAKE_NONDET(_Bool);
 
+_Bool __VERIFIER_nondet_bool(void)
+{
+	return __VERIFIER_nondet__Bool();
+}
+
 #undef MAKE_NONDET
 
 #define MAKE_NONDET(type)				\

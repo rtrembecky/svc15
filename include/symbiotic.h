@@ -1,9 +1,6 @@
 #ifndef _SYMBIOTIC_
 #define _SYMBIOTIC_
 
-/* stdbool.h defines bool as _Bool. */
-#define __VERIFIER_nondet_bool __VERIFIER_nondet__Bool
-
 #ifdef __cplusplus
 extern "C" {
 #endif
