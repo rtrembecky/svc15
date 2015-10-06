@@ -158,7 +158,6 @@ test -z "$KLEE_PARAMS" && KLEE_PARAMS="-optimize -write-paths -max-solver-time=5
 debug "$DIR/bin/klee -output-dir=$FILE-klee-out $KLEE_PARAMS ${FILE%.c}.o"
 $DIR/bin/klee -output-dir="$FILE-klee-out" $KLEE_PARAMS "${FILE%.c}.o" 2>&1 |
 	tee $KLEE_OUTPUT_FILE |
-	while read LINE; do
 		# if we run into assert, we don't need to explore
 		# all paths and can give result right now
 		if grep -i -q 'assertion failed'; then
@@ -166,7 +165,6 @@ $DIR/bin/klee -output-dir="$FILE-klee-out" $KLEE_PARAMS "${FILE%.c}.o" 2>&1 |
 			# command will return 3 and we can catch it
 			result FALSE 3
 		fi
-	done
 
 # if we already found assert, do not parse the output
 if [ $? -eq 3 ]; then
