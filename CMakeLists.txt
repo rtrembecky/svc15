@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
-project(svc13 LANGUAGES CXX)
+project(svc13)
 
 find_package(LLVM)
 
