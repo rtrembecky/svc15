@@ -1,6 +1,16 @@
 // GPLv2
 
-#include <klee/klee.h>
+
+typedef unsigned int size_t;
+typedef unsigned long uintptr_t;
+
+void klee_make_symbolic(void *addr, size_t nbytes, const char *name);
+void klee_assume(uintptr_t condition);
+
+extern void __VERIFIER_error(void);
+
+extern void __assert_fail (__const char *__assertion, __const char *__file,
+			   unsigned int __line, __const char *__function);
 
 void __VERIFIER_error(void)
 {
