@@ -32,11 +32,3 @@ add_subdirectory(src)
 add_subdirectory(lib)
 add_subdirectory(include)
 add_subdirectory(scripts)
-
-add_custom_target(
-	svcversion sh svc_version.sh
-)
-
-install(FILES SVC_SCRIPTS_VERSION
-	DESTINATION ${CMAKE_INSTALL_PREFIX}/
-	OPTIONAL)
