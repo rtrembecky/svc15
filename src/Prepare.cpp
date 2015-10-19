@@ -91,6 +91,8 @@ char DeleteUndefined::ID;
 
 static const char *leave_calls[] = {
   "__assert_fail",
+  "klee_make_symbolic",
+  "klee_assume",
   "exit",
   "sprintf",
   "snprintf",
