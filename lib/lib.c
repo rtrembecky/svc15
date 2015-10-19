@@ -1,6 +1,30 @@
 // GPLv2
 
+#define FEXP_MASK 0x7f800000
+#define SIGN_MASK 0x80000000
+#define dHighMan 0x000FFFFF
+#define dExpMask 0x7FF00000
+#define dSgnMask 0x80000000
+#define FEXP_MASK 0x7f800000
+#define FFRAC_MASK 0x007fffff
 
+/* All floating-point numbers can be put in one of these categories.  */
+enum
+  {
+    FP_NAN,
+# define FP_NAN FP_NAN
+    FP_INFINITE,
+# define FP_INFINITE FP_INFINITE
+    FP_ZERO,
+# define FP_ZERO FP_ZERO
+    FP_SUBNORMAL,
+# define FP_SUBNORMAL FP_SUBNORMAL
+    FP_NORMAL
+# define FP_NORMAL FP_NORMAL
+  };
+
+typedef	unsigned int u_int32_t; //klee-uclibc/include/sys/types.h
+typedef unsigned long int uint32_t; //stdint.h
 typedef unsigned int size_t;
 typedef unsigned long uintptr_t;
 
@@ -134,4 +158,190 @@ void *kzalloc(int size, int gfp)
 {
 	extern void *malloc(size_t size);
 	return malloc(size);
+}
+
+int __fpclassifyf ( float x )
+{
+   unsigned int iexp;
+
+   union {
+      u_int32_t lval;
+      float fval;
+   } z;
+
+   z.fval = x;
+   iexp = z.lval & FEXP_MASK;                 /* isolate float exponent */
+
+   if (iexp == FEXP_MASK) {                   /* NaN or INF case */
+      if ((z.lval & 0x007fffff) == 0)
+         return FP_INFINITE;
+	return FP_NAN;
+   }
+
+   if (iexp != 0)                             /* normal float */
+      return FP_NORMAL;
+
+   if (x == 0.0)
+      return FP_ZERO;             /* zero */
+   else
+      return FP_SUBNORMAL;        /* must be subnormal */
+}
+
+typedef struct                   /*      Hex representation of a double.      */
+      {
+#if (__BYTE_ORDER == __BIG_ENDIAN)
+      uint32_t high;
+      uint32_t low;
+#else
+      uint32_t low;
+      uint32_t high;
+#endif
+      } dHexParts;
+
+
+#if 0
+int
+__signbitf (float __x)
+{
+  __extension__ union { float __f; int __i; } __u = { .__f = __x };
+  return __u.__i < 0;
+}
+
+int
+__signbit (double __x)
+{
+  __extension__ union { double __d; int __i[2]; } __u = { .__d = __x };
+  return __u.__i[1] < 0;
+}
+
+int
+__signbitl (long double __x)
+{
+  __extension__ union { long double __l; int __i[3]; } __u = { .__l = __x };
+  return (__u.__i[2] & 0x8000) != 0;
+}
+#endif
+
+int __signbitf ( float x )
+{
+   union {
+      u_int32_t lval;
+      float fval;
+   } z;
+
+   z.fval = x;
+   return ((z.lval & SIGN_MASK) != 0);
+}
+
+int __signbitl (long double __x)
+{
+  return __signbit ((double)__x);
+}
+
+int __signbit ( double arg )
+{
+      union
+            {
+            dHexParts hex;
+            double dbl;
+            } x;
+      int sign;
+
+      x.dbl = arg;
+      sign = ( ( x.hex.high & dSgnMask ) == dSgnMask ) ? 1 : 0;
+      return sign;
+}
+
+int __fpclassify ( double arg )
+{
+	register unsigned int exponent;
+      union
+            {
+            dHexParts hex;
+            double dbl;
+            } x;
+
+	x.dbl = arg;
+
+	exponent = x.hex.high & dExpMask;
+	if ( exponent == dExpMask )
+		{
+		if ( ( ( x.hex.high & dHighMan ) | x.hex.low ) == 0 )
+			return FP_INFINITE;
+		else
+            	return FP_NAN;
+		}
+	else if ( exponent != 0)
+		return FP_NORMAL;
+	else {
+		if ( arg == 0.0 )
+			return FP_ZERO;
+		else
+			return FP_SUBNORMAL;
+		}
+}
+
+int __isinff ( float x )
+{
+    int class = __fpclassifyf(x);
+    if ( class == FP_INFINITE ) {
+	return ( (__signbitf(x)) ? -1 : 1);
+    }
+    return 0;
+}
+
+int __isinf ( double x )
+{
+    int class = __fpclassify(x);
+    if ( class == FP_INFINITE ) {
+	return ( (__signbit(x)) ? -1 : 1);
+    }
+    return 0;
+}
+
+int __isinfl ( long double x )
+{
+    int class = __fpclassify(x);
+    if ( class == FP_INFINITE ) {
+	return ( (__signbit(x)) ? -1 : 1);
+    }
+    return 0;
+}
+
+int __isnanf ( float x )
+{
+   union {
+      u_int32_t lval;
+      float fval;
+   } z;
+
+   z.fval = x;
+   return (((z.lval&FEXP_MASK) == FEXP_MASK) && ((z.lval&FFRAC_MASK) != 0));
+}
+
+int __isnan ( double x )
+{
+	int class = __fpclassify(x);
+	return ( class == FP_NAN );
+}
+
+int __isnanl ( long double x )
+{
+	int class = __fpclassify(x);
+	return ( class == FP_NAN );
+}
+
+int
+fesetround (int round)
+{
+  #define SPEFSCR_FRMC (0x00000003)
+  unsigned long fpescr;
+
+  if ((unsigned int) round > 3)
+    return 1;
+
+  fpescr = (fpescr & ~SPEFSCR_FRMC) | (round & 3);
+  #undef SPEFSCR_FRMC
+
+  return 0;
 }
