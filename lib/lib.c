@@ -31,6 +31,19 @@ typedef unsigned long uintptr_t;
 void klee_make_symbolic(void *addr, size_t nbytes, const char *name);
 void klee_assume(uintptr_t condition);
 
+/* add our own versions of malloc and calloc */
+void *__VERIFIER_malloc(size_t size)
+{
+	extern void *malloc(size_t);
+	return malloc(size + 16);
+}
+
+void *__VERIFIER_calloc(size_t nmem, size_t size)
+{
+	extern void *calloc(size_t, size_t);
+	return calloc(nmem + 4, size);
+}
+
 extern void __VERIFIER_error(void);
 
 extern void __assert_fail (__const char *__assertion, __const char *__file,

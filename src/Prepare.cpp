@@ -98,6 +98,7 @@ static const char *leave_calls[] = {
   "snprintf",
   "swprintf",
   "malloc",
+  "calloc",
   "free",
   "memset",
   "memcmp",
@@ -223,3 +224,128 @@ bool Prepare::runOnModule(Module &M) {
 
   return true;
 }
+
+class InstrumentAlloc : public FunctionPass {
+  public:
+    static char ID;
+
+    InstrumentAlloc() : FunctionPass(ID) {}
+
+    virtual bool runOnFunction(Function &F);
+};
+
+
+static RegisterPass<InstrumentAlloc> INSTALLOC("instrument-alloc",
+                                               "replace calls to malloc and calloc with our funs");
+char InstrumentAlloc::ID;
+
+static void replace_malloc(Module *M, CallInst *CI)
+{
+  Constant *C = M->getOrInsertFunction("__VERIFIER_malloc", CI->getType(), CI->getOperand(0)->getType(), NULL);
+  Function *Malloc = cast<Function>(C);
+
+  CI->setCalledFunction(Malloc);
+}
+
+static void replace_calloc(Module *M, CallInst *CI)
+{
+  Constant *C = M->getOrInsertFunction("__VERIFIER_calloc", CI->getType(), CI->getOperand(0)->getType(), CI->getOperand(1)->getType(), NULL);
+  Function *Calloc = cast<Function>(C);
+
+  CI->setCalledFunction(Calloc);
+}
+
+bool InstrumentAlloc::runOnFunction(Function &F)
+{
+  bool modified = false;
+  Module *M = F.getParent();
+
+  for (inst_iterator I = inst_begin(F), E = inst_end(F); I != E;) {
+    Instruction *ins = &*I;
+    ++I;
+    if (CallInst *CI = dyn_cast<CallInst>(ins)) {
+      if (CI->isInlineAsm())
+        continue;
+
+      const Value *val = CI->getCalledValue()->stripPointerCasts();
+      const Function *callee = dyn_cast<Function>(val);
+      if (!callee || callee->isIntrinsic())
+        continue;
+
+      assert(callee->hasName());
+      StringRef name = callee->getName();
+
+      if (name.equals("malloc")) {
+        replace_malloc(M, CI);
+        modified = true;
+      } else if (name.equals("calloc")) {
+        replace_calloc(M, CI);
+        modified = true;
+      }
+    }
+  }
+  return modified;
+}
+
+class InitializeUninitialized : public FunctionPass {
+  public:
+    static char ID;
+
+    InitializeUninitialized() : FunctionPass(ID) {}
+
+    virtual bool runOnFunction(Function &F);
+};
+
+
+static RegisterPass<InitializeUninitialized> INIUNINI("initialize-uninitialized",
+                                                      "initialize all uninitialized variables to non-deterministic value");
+char InitializeUninitialized::ID;
+
+bool InitializeUninitialized::runOnFunction(Function &F)
+{
+  bool modified = false;
+  Module *M = F.getParent();
+  LLVMContext& Ctx = M->getContext();
+  Constant *C_int, *C_long, *C_bool, *C_float, *C_double;
+  Function *Func;
+
+  C_bool = M->getOrInsertFunction("__VERIFIER_nondet_bool", IntegerType::get(Ctx, 1), NULL);
+  C_int = M->getOrInsertFunction("__VERIFIER_nondet_int", IntegerType::get(Ctx, 32), NULL);
+  C_long = M->getOrInsertFunction("__VERIFIER_nondet_long", IntegerType::get(Ctx, 64), NULL);
+  C_float = M->getOrInsertFunction("__VERIFIER_nondet_float", Type::getFloatTy(Ctx), NULL);
+  C_double = M->getOrInsertFunction("__VERIFIER_nondet_double", Type::getDoubleTy(Ctx), NULL);
+
+  for (inst_iterator I = inst_begin(F), E = inst_end(F); I != E;) {
+    Instruction *ins = &*I;
+    ++I;
+
+    if (AllocaInst *AI = dyn_cast<AllocaInst>(ins)) {
+      Type *Ty = AI->getAllocatedType();
+      CallInst *CI = NULL;
+
+      if (Ty->isIntegerTy()) {
+        switch(Ty->getIntegerBitWidth()) {
+          case 32:
+            CI = CallInst::Create(C_int);
+            break;
+          case 64:
+            CI = CallInst::Create(C_long);
+            break;
+        }
+      } else if (Ty->isDoubleTy()) {
+           CI = CallInst::Create(C_double);
+      } else if (Ty->isFloatTy()) {
+           CI = CallInst::Create(C_float);
+      }
+
+      if (CI) {
+        CI->insertAfter(AI);
+        StoreInst *SI = new StoreInst(CI, AI);
+        SI->insertAfter(CI);
+        modified = true;
+      }
+    }
+  }
+  return modified;
+}
+
