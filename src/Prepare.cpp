@@ -5,7 +5,9 @@
 
 #include <assert.h>
 #include <cstring>
+#include <vector>
 
+#include "llvm/IR/DataLayout.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
@@ -306,14 +308,24 @@ bool InitializeUninitialized::runOnFunction(Function &F)
   bool modified = false;
   Module *M = F.getParent();
   LLVMContext& Ctx = M->getContext();
-  Constant *C_int, *C_long, *C_bool, *C_float, *C_double;
-  Function *Func;
+  DataLayout *DL = new DataLayout(M->getDataLayout());
+  Constant *name_init = ConstantDataArray::getString(Ctx, "nondet");
+  GlobalVariable *name = new GlobalVariable(*M, name_init->getType(), true, GlobalValue::PrivateLinkage, name_init);
+  Type *size_t_Ty;
 
-  C_bool = M->getOrInsertFunction("__VERIFIER_nondet_bool", IntegerType::get(Ctx, 1), NULL);
-  C_int = M->getOrInsertFunction("__VERIFIER_nondet_int", IntegerType::get(Ctx, 32), NULL);
-  C_long = M->getOrInsertFunction("__VERIFIER_nondet_long", IntegerType::get(Ctx, 64), NULL);
-  C_float = M->getOrInsertFunction("__VERIFIER_nondet_float", Type::getFloatTy(Ctx), NULL);
-  C_double = M->getOrInsertFunction("__VERIFIER_nondet_double", Type::getDoubleTy(Ctx), NULL);
+  if (DL->getPointerSizeInBits() > 32)
+    size_t_Ty = Type::getInt64Ty(Ctx);
+  else
+    size_t_Ty = Type::getInt32Ty(Ctx);
+
+  //void klee_make_symbolic(void *addr, size_t nbytes, const char *name);
+  Constant *C = M->getOrInsertFunction("klee_make_symbolic",
+                                       Type::getVoidTy(Ctx),
+                                       Type::getInt8PtrTy(Ctx), // addr
+                                       size_t_Ty,   // nbytes
+                                       Type::getInt8PtrTy(Ctx), // name
+                                       NULL);
+
 
   for (inst_iterator I = inst_begin(F), E = inst_end(F); I != E;) {
     Instruction *ins = &*I;
@@ -322,30 +334,43 @@ bool InitializeUninitialized::runOnFunction(Function &F)
     if (AllocaInst *AI = dyn_cast<AllocaInst>(ins)) {
       Type *Ty = AI->getAllocatedType();
       CallInst *CI = NULL;
+      CastInst *CastI = NULL;
+      GetElementPtrInst *GEP = NULL;
 
-      if (Ty->isIntegerTy()) {
-        switch(Ty->getIntegerBitWidth()) {
-          case 32:
-            CI = CallInst::Create(C_int);
-            break;
-          case 64:
-            CI = CallInst::Create(C_long);
-            break;
+      if (Ty->isSized()) {
+        std::vector<Value *> args;
+        if (Ty->isAggregateType()) {
+            std::vector<Value *> idxs;
+            idxs.push_back(ConstantInt::get(size_t_Ty, 0));
+            idxs.push_back(ConstantInt::get(size_t_Ty, 0));
+
+            GEP = GetElementPtrInst::CreateInBounds(AI, idxs);
+            CastI = CastInst::CreatePointerCast(GEP, Type::getInt8PtrTy(Ctx));
+        } else {
+            CastI = CastInst::CreatePointerCast(AI, Type::getInt8PtrTy(Ctx));
         }
-      } else if (Ty->isDoubleTy()) {
-           CI = CallInst::Create(C_double);
-      } else if (Ty->isFloatTy()) {
-           CI = CallInst::Create(C_float);
+
+        args.push_back(CastI);
+        args.push_back(ConstantInt::get(size_t_Ty, DL->getTypeAllocSize(Ty)));
+        args.push_back(ConstantExpr::getPointerCast(name, Type::getInt8PtrTy(Ctx)));
+        CI = CallInst::Create(C, args);
       }
 
       if (CI) {
-        CI->insertAfter(AI);
-        StoreInst *SI = new StoreInst(CI, AI);
-        SI->insertAfter(CI);
+        assert(CastI);
+        if (GEP) {
+            GEP->insertAfter(AI);
+            CastI->insertAfter(GEP);
+        } else
+            CastI->insertAfter(AI);
+
+        CI->insertAfter(CastI);
         modified = true;
       }
     }
   }
+
+  delete DL;
   return modified;
 }
 
