@@ -35,13 +35,24 @@ void klee_assume(uintptr_t condition);
 void *__VERIFIER_malloc(size_t size)
 {
 	extern void *malloc(size_t);
-	return malloc(size + 16);
+
+	void *mem = malloc(size + 16);
+	/* XXX do we always want this? */
+	klee_assume(mem != (void *) 0);
+	klee_make_symbolic(mem, size + 16, "malloc");
+
+	return mem;
 }
 
 void *__VERIFIER_calloc(size_t nmem, size_t size)
 {
 	extern void *calloc(size_t, size_t);
-	return calloc(nmem + 4, size);
+
+	void *mem = calloc(nmem + 4, size);
+	klee_assume(mem != (void *) 0);
+	klee_make_symbolic(mem, (nmem + 4) * size, "calloc");
+
+	return mem;
 }
 
 extern void __VERIFIER_error(void);
