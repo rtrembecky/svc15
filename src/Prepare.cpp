@@ -339,16 +339,7 @@ bool InitializeUninitialized::runOnFunction(Function &F)
 
       if (Ty->isSized()) {
         std::vector<Value *> args;
-        if (Ty->isAggregateType()) {
-            std::vector<Value *> idxs;
-            idxs.push_back(ConstantInt::get(size_t_Ty, 0));
-            idxs.push_back(ConstantInt::get(size_t_Ty, 0));
-
-            GEP = GetElementPtrInst::CreateInBounds(AI, idxs);
-            CastI = CastInst::CreatePointerCast(GEP, Type::getInt8PtrTy(Ctx));
-        } else {
-            CastI = CastInst::CreatePointerCast(AI, Type::getInt8PtrTy(Ctx));
-        }
+        CastI = CastInst::CreatePointerCast(AI, Type::getInt8PtrTy(Ctx));
 
         args.push_back(CastI);
         args.push_back(ConstantInt::get(size_t_Ty, DL->getTypeAllocSize(Ty)));
