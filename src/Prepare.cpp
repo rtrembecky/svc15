@@ -236,28 +236,53 @@ class InstrumentAlloc : public FunctionPass {
     virtual bool runOnFunction(Function &F);
 };
 
-
 static RegisterPass<InstrumentAlloc> INSTALLOC("instrument-alloc",
                                                "replace calls to malloc and calloc with our funs");
 char InstrumentAlloc::ID;
 
-static void replace_malloc(Module *M, CallInst *CI)
+class InstrumentAllocNeverFails : public FunctionPass {
+  public:
+    static char ID;
+
+    InstrumentAllocNeverFails() : FunctionPass(ID) {}
+
+    virtual bool runOnFunction(Function &F);
+};
+
+static RegisterPass<InstrumentAllocNeverFails> INSTALLOCNF("instrument-alloc-nf",
+                                                           "replace calls to malloc and calloc with our funs and assume that the"
+                                                           "allocation never fail");
+char InstrumentAllocNeverFails::ID;
+
+static void replace_malloc(Module *M, CallInst *CI, bool never_fails)
 {
-  Constant *C = M->getOrInsertFunction("__VERIFIER_malloc", CI->getType(), CI->getOperand(0)->getType(), NULL);
+  Constant *C = NULL;
+
+  if (never_fails)
+    C = M->getOrInsertFunction("__VERIFIER_malloc0", CI->getType(), CI->getOperand(0)->getType(), NULL);
+  else
+    C = M->getOrInsertFunction("__VERIFIER_malloc", CI->getType(), CI->getOperand(0)->getType(), NULL);
+
+  assert(C);
   Function *Malloc = cast<Function>(C);
 
   CI->setCalledFunction(Malloc);
 }
 
-static void replace_calloc(Module *M, CallInst *CI)
+static void replace_calloc(Module *M, CallInst *CI, bool never_fails)
 {
-  Constant *C = M->getOrInsertFunction("__VERIFIER_calloc", CI->getType(), CI->getOperand(0)->getType(), CI->getOperand(1)->getType(), NULL);
-  Function *Calloc = cast<Function>(C);
+  Constant *C = NULL;
+  if (never_fails)
+    C = M->getOrInsertFunction("__VERIFIER_calloc0", CI->getType(), CI->getOperand(0)->getType(), CI->getOperand(1)->getType(), NULL);
+  else
+    C = M->getOrInsertFunction("__VERIFIER_calloc", CI->getType(), CI->getOperand(0)->getType(), CI->getOperand(1)->getType(), NULL);
 
+  assert(C);
+  Function *Calloc = cast<Function>(C);
   CI->setCalledFunction(Calloc);
 }
 
-bool InstrumentAlloc::runOnFunction(Function &F)
+static bool instrument_alloc(Function &F, bool never_fails)
 {
   bool modified = false;
   Module *M = F.getParent();
@@ -278,15 +303,25 @@ bool InstrumentAlloc::runOnFunction(Function &F)
       StringRef name = callee->getName();
 
       if (name.equals("malloc")) {
-        replace_malloc(M, CI);
+        replace_malloc(M, CI, never_fails);
         modified = true;
       } else if (name.equals("calloc")) {
-        replace_calloc(M, CI);
+        replace_calloc(M, CI, never_fails);
         modified = true;
       }
     }
   }
   return modified;
+}
+
+bool InstrumentAlloc::runOnFunction(Function &F)
+{
+    return instrument_alloc(F, false /* never fails */);
+}
+
+bool InstrumentAllocNeverFails::runOnFunction(Function &F)
+{
+    return instrument_alloc(F, true /* never fails */);
 }
 
 class InitializeUninitialized : public FunctionPass {

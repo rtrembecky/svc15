@@ -36,10 +36,8 @@ void *__VERIFIER_malloc(size_t size)
 {
 	extern void *malloc(size_t);
 
-	void *mem = malloc(size + 16);
-	/* XXX do we always want this? */
-	klee_assume(mem != (void *) 0);
-	klee_make_symbolic(mem, size + 16, "malloc");
+	void *mem = malloc(size);
+	klee_make_symbolic(mem, size, "malloc");
 
 	return mem;
 }
@@ -48,9 +46,30 @@ void *__VERIFIER_calloc(size_t nmem, size_t size)
 {
 	extern void *calloc(size_t, size_t);
 
-	void *mem = calloc(nmem + 4, size);
+	void *mem = calloc(nmem, size);
+	klee_make_symbolic(mem, nmem * size, "calloc");
+
+	return mem;
+}
+
+void *__VERIFIER_malloc0(size_t size)
+{
+	extern void *malloc(size_t);
+
+	void *mem = malloc(size + 16);
 	klee_assume(mem != (void *) 0);
-	klee_make_symbolic(mem, (nmem + 4) * size, "calloc");
+	klee_make_symbolic(mem, size + 16, "malloc");
+
+	return mem;
+}
+
+void *__VERIFIER_calloc0(size_t nmem, size_t size)
+{
+	extern void *calloc(size_t, size_t);
+
+	void *mem = calloc(nmem, size);
+	klee_assume(mem != (void *) 0);
+	klee_make_symbolic(mem, nmem * size, "calloc");
 
 	return mem;
 }
