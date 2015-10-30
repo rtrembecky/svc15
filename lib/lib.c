@@ -56,9 +56,9 @@ void *__VERIFIER_malloc0(size_t size)
 {
 	extern void *malloc(size_t);
 
-	void *mem = malloc(size + 16);
+	void *mem = malloc(size);
 	klee_assume(mem != (void *) 0);
-	klee_make_symbolic(mem, size + 16, "malloc");
+	klee_make_symbolic(mem, size, "malloc");
 
 	return mem;
 }
