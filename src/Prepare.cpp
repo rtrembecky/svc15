@@ -130,11 +130,15 @@ bool DeleteUndefined::runOnFunction(Function &F)
       assert(callee->hasName());
       StringRef name = callee->getName();
 
-      if (name.startswith("__VERIFIER_") ||
-          name.equals("nondet_int") ||
+      if (name.equals("nondet_int") ||
           name.equals("klee_int") || array_match(name, leave_calls)) {
         continue;
       }
+
+      // if this is __VERIFIER_something call different that to nondet,
+      // keep it
+      if (name.startswith("__VERIFIER") && !name.startswith("__VERIFIER_nondet"))
+        continue;
 
       if (callee->isDeclaration()) {
        errs() << "Prepare: removing call to '" << name << "' (unsound)\n";
