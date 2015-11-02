@@ -110,10 +110,63 @@ static const char *leave_calls[] = {
   NULL
 };
 
+// FIXME: don't duplicate the code with -instrument-alloca
+// replace CallInst with alloca with nondeterministic value
+// TODO: what about pointers it takes as parameters?
+static void replaceCall(CallInst *CI, Module *M)
+{
+  LLVMContext& Ctx = M->getContext();
+  DataLayout *DL = new DataLayout(M->getDataLayout());
+  Constant *name_init = ConstantDataArray::getString(Ctx, "nondet_from_undef");
+  GlobalVariable *name = new GlobalVariable(*M, name_init->getType(), true, GlobalValue::PrivateLinkage, name_init);
+  Type *size_t_Ty;
+
+  if (DL->getPointerSizeInBits() > 32)
+    size_t_Ty = Type::getInt64Ty(Ctx);
+  else
+    size_t_Ty = Type::getInt32Ty(Ctx);
+
+  //void klee_make_symbolic(void *addr, size_t nbytes, const char *name);
+  Constant *C = M->getOrInsertFunction("klee_make_symbolic",
+                                       Type::getVoidTy(Ctx),
+                                       Type::getInt8PtrTy(Ctx), // addr
+                                       size_t_Ty,   // nbytes
+                                       Type::getInt8PtrTy(Ctx), // name
+                                       NULL);
+
+
+  Type *Ty = CI->getType();
+  // we checked for this before
+  assert(!Ty->isVoidTy());
+  // what to do in this case?
+  assert(Ty->isSized());
+
+  AllocaInst *AI = new AllocaInst(Ty, "alloca_from_undef");
+  LoadInst *LI = new LoadInst(AI);
+  CallInst *newCI = NULL;
+  CastInst *CastI = NULL;
+
+  std::vector<Value *> args;
+  CastI = CastInst::CreatePointerCast(AI, Type::getInt8PtrTy(Ctx));
+
+  args.push_back(CastI);
+  args.push_back(ConstantInt::get(size_t_Ty, DL->getTypeAllocSize(Ty)));
+  args.push_back(ConstantExpr::getPointerCast(name, Type::getInt8PtrTy(Ctx)));
+  newCI = CallInst::Create(C, args);
+
+
+  AI->insertAfter(CI);
+  CastI->insertAfter(AI);
+  newCI->insertAfter(CastI);
+  LI->insertAfter(newCI);
+
+  CI->replaceAllUsesWith(LI);
+}
+
 bool DeleteUndefined::runOnFunction(Function &F)
 {
   bool modified = false;
-  const Module *M = F.getParent();
+  Module *M = F.getParent();
 
   for (inst_iterator I = inst_begin(F), E = inst_end(F); I != E;) {
     Instruction *ins = &*I;
@@ -125,7 +178,7 @@ bool DeleteUndefined::runOnFunction(Function &F)
       const Value *val = CI->getCalledValue()->stripPointerCasts();
       const Function *callee = dyn_cast<Function>(val);
       if (!callee || callee->isIntrinsic())
-	continue;
+        continue;
 
       assert(callee->hasName());
       StringRef name = callee->getName();
@@ -143,10 +196,10 @@ bool DeleteUndefined::runOnFunction(Function &F)
       if (callee->isDeclaration()) {
        errs() << "Prepare: removing call to '" << name << "' (unsound)\n";
        if (!CI->getType()->isVoidTy()) {
-//       CI->replaceAllUsesWith(UndefValue::get(CI->getType()));
-         CI->replaceAllUsesWith(Constant::getNullValue(CI->getType()));
+         replaceCall(CI, M);
        }
        CI->eraseFromParent();
+       modified = true;
       }
     }
   }
