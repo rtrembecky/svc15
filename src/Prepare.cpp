@@ -101,6 +101,7 @@ static const char *leave_calls[] = {
   "swprintf",
   "malloc",
   "calloc",
+  "realloc",
   "free",
   "memset",
   "memcmp",
