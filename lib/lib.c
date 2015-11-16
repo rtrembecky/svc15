@@ -31,6 +31,14 @@ typedef unsigned long uintptr_t;
 void klee_make_symbolic(void *addr, size_t nbytes, const char *name);
 void klee_assume(uintptr_t condition);
 
+int __symbiotic_errno = 0;
+int * __attribute__((weak)) __errno_location(void)
+{
+	/* we don't support multi-threaded programs,
+	 * so we can have just this one errno */
+	return &__symbiotic_errno;
+}
+
 /* add our own versions of malloc and calloc */
 void *__VERIFIER_malloc(size_t size)
 {
@@ -372,19 +380,4 @@ int __isnanl ( long double x )
 {
 	int class = __fpclassify(x);
 	return ( class == FP_NAN );
-}
-
-int
-fesetround (int round)
-{
-  #define SPEFSCR_FRMC (0x00000003)
-  unsigned long fpescr;
-
-  if ((unsigned int) round > 3)
-    return 1;
-
-  fpescr = (fpescr & ~SPEFSCR_FRMC) | (round & 3);
-  #undef SPEFSCR_FRMC
-
-  return 0;
 }

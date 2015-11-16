@@ -110,6 +110,7 @@ static const char *leave_calls[] = {
   "memcpy",
   "memmove",
   "kzalloc",
+  "__errno_location",
   NULL
 };
 
