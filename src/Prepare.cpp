@@ -102,9 +102,11 @@ static const char *leave_calls[] = {
   "klee_warning_once",
   "exit",
   "_exit",
+/*
   "sprintf",
   "snprintf",
   "swprintf",
+*/
   "malloc",
   "calloc",
   "realloc",
