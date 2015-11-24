@@ -435,23 +435,34 @@ bool InitializeUninitialized::runOnFunction(Function &F)
 
     if (AllocaInst *AI = dyn_cast<AllocaInst>(ins)) {
       Type *Ty = AI->getAllocatedType();
+      AllocaInst *newAlloca = NULL;
       CallInst *CI = NULL;
       CastInst *CastI = NULL;
+      StoreInst *SI = NULL;
+      LoadInst *LI = NULL;
 
+      // create new allocainst, declare it symbolic and store it
+      // to the original alloca. This way slicer will slice this
+      // initialization away if program initialize it manually later
       if (Ty->isSized()) {
-        std::vector<Value *> args;
-        CastI = CastInst::CreatePointerCast(AI, Type::getInt8PtrTy(Ctx));
+        newAlloca = new AllocaInst(Ty, "alloca_uninitial");
+        CastI = CastInst::CreatePointerCast(newAlloca, Type::getInt8PtrTy(Ctx));
 
+        std::vector<Value *> args;
         args.push_back(CastI);
         args.push_back(ConstantInt::get(size_t_Ty, DL->getTypeAllocSize(Ty)));
         args.push_back(ConstantExpr::getPointerCast(name, Type::getInt8PtrTy(Ctx)));
         CI = CallInst::Create(C, args);
-      }
 
-      if (CI) {
-        assert(CastI);
-        CastI->insertAfter(AI);
+        LI = new LoadInst(newAlloca);
+        SI = new StoreInst(LI, AI);
+
+        newAlloca->insertAfter(AI);
+        CastI->insertAfter(newAlloca);
         CI->insertAfter(CastI);
+        LI->insertAfter(CI);
+        SI->insertAfter(LI);
+
         modified = true;
       }
     }
