@@ -437,7 +437,6 @@ bool InitializeUninitialized::runOnFunction(Function &F)
       Type *Ty = AI->getAllocatedType();
       CallInst *CI = NULL;
       CastInst *CastI = NULL;
-      GetElementPtrInst *GEP = NULL;
 
       if (Ty->isSized()) {
         std::vector<Value *> args;
@@ -451,12 +450,7 @@ bool InitializeUninitialized::runOnFunction(Function &F)
 
       if (CI) {
         assert(CastI);
-        if (GEP) {
-            GEP->insertAfter(AI);
-            CastI->insertAfter(GEP);
-        } else
-            CastI->insertAfter(AI);
-
+        CastI->insertAfter(AI);
         CI->insertAfter(CastI);
         modified = true;
       }
