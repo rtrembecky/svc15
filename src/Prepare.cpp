@@ -204,7 +204,7 @@ bool DeleteUndefined::runOnFunction(Function &F)
         continue;
 
       if (callee->isDeclaration()) {
-       errs() << "Prepare: removing call to '" << name << "' (unsound)\n";
+       errs() << "Prepare: removing call to '" << name << "' (function is undefined)\n";
        if (!CI->getType()->isVoidTy()) {
          replaceCall(CI, M);
        }
