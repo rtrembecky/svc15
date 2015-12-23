@@ -39,10 +39,15 @@ int * __attribute__((weak)) __errno_location(void)
 	return &__symbiotic_errno;
 }
 
+_Bool __VERIFIER_nondet__Bool();
+
 /* add our own versions of malloc and calloc */
 void *__VERIFIER_malloc(size_t size)
 {
 	extern void *malloc(size_t);
+
+	if (__VERIFIER_nondet__Bool)
+		return ((void *) 0);
 
 	void *mem = malloc(size);
 	klee_make_symbolic(mem, size, "malloc");
@@ -52,10 +57,15 @@ void *__VERIFIER_malloc(size_t size)
 
 void *__VERIFIER_calloc(size_t nmem, size_t size)
 {
-	extern void *calloc(size_t, size_t);
+	if (__VERIFIER_nondet__Bool)
+		return ((void *) 0);
 
-	void *mem = calloc(nmem, size);
+	void *mem = malloc(nmem * size);
+	/* do it symbolic, so that subsequent
+	 * uses will be symbolic, but initialize it
+	 * to 0s */
 	klee_make_symbolic(mem, nmem * size, "calloc");
+	memset(mem, 0, nmem * size);
 
 	return mem;
 }
@@ -65,19 +75,18 @@ void *__VERIFIER_malloc0(size_t size)
 	extern void *malloc(size_t);
 
 	void *mem = malloc(size);
-	klee_assume(mem != (void *) 0);
-	klee_make_symbolic(mem, size, "malloc");
+	//klee_assume(mem != (void *) 0);
+	klee_make_symbolic(mem, size, "malloc0");
 
 	return mem;
 }
 
 void *__VERIFIER_calloc0(size_t nmem, size_t size)
 {
-	extern void *calloc(size_t, size_t);
-
-	void *mem = calloc(nmem, size);
-	klee_assume(mem != (void *) 0);
-	klee_make_symbolic(mem, nmem * size, "calloc");
+	void *mem = malloc(nmem * size);
+	//klee_assume(mem != (void *) 0);
+	klee_make_symbolic(mem, nmem * size, "calloc0");
+	memset(mem, 0, nmem * size);
 
 	return mem;
 }
