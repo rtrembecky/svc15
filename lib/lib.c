@@ -42,11 +42,12 @@ int * __attribute__((weak)) __errno_location(void)
 _Bool __VERIFIER_nondet__Bool();
 
 /* add our own versions of malloc and calloc */
+/* non-deterministically return memory or NULL */
 void *__VERIFIER_malloc(size_t size)
 {
 	extern void *malloc(size_t);
 
-	if (__VERIFIER_nondet__Bool)
+	if (__VERIFIER_nondet__Bool())
 		return ((void *) 0);
 
 	void *mem = malloc(size);
@@ -57,7 +58,7 @@ void *__VERIFIER_malloc(size_t size)
 
 void *__VERIFIER_calloc(size_t nmem, size_t size)
 {
-	if (__VERIFIER_nondet__Bool)
+	if (__VERIFIER_nondet__Bool())
 		return ((void *) 0);
 
 	void *mem = malloc(nmem * size);
@@ -70,11 +71,13 @@ void *__VERIFIER_calloc(size_t nmem, size_t size)
 	return mem;
 }
 
+/* this versions never return NULL */
 void *__VERIFIER_malloc0(size_t size)
 {
 	extern void *malloc(size_t);
 
 	void *mem = malloc(size);
+	// NOTE: klee already assumes that
 	//klee_assume(mem != (void *) 0);
 	klee_make_symbolic(mem, size, "malloc0");
 
