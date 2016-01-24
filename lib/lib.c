@@ -72,6 +72,26 @@ int * __attribute__((weak)) __errno_location(void)
 	return &__symbiotic_errno;
 }
 
+size_t __attribute__((weak)) strlen(char *str)
+{
+	size_t len = 0;
+	while (*str) {
+		++len;
+		++str;
+	}
+
+	return len;
+}
+
+char * __attribute__((weak)) strdup(char *str)
+{
+	size_t len = strlen(str);
+	char *mem = malloc(len);
+	memcpy(mem, str, len);
+
+	return mem;
+}
+
 _Bool __VERIFIER_nondet__Bool();
 
 /* add our own versions of malloc and calloc */
