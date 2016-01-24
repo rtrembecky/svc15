@@ -45,32 +45,20 @@ const unsigned short **__ctype_b_loc(void)
 	return (void *)&ptable;
 }
 
-#define FEXP_MASK 0x7f800000
-#define SIGN_MASK 0x80000000
-#define dHighMan 0x000FFFFF
-#define dExpMask 0x7FF00000
-#define dSgnMask 0x80000000
-#define FEXP_MASK 0x7f800000
-#define FFRAC_MASK 0x007fffff
-
-/* All floating-point numbers can be put in one of these categories.  */
-enum
-  {
-    FP_NAN,
-# define FP_NAN FP_NAN
-    FP_INFINITE,
-# define FP_INFINITE FP_INFINITE
-    FP_ZERO,
-# define FP_ZERO FP_ZERO
-    FP_SUBNORMAL,
-# define FP_SUBNORMAL FP_SUBNORMAL
-    FP_NORMAL
-# define FP_NORMAL FP_NORMAL
-  };
-
+#ifdef __UINT32_TYPE__
+typedef __UINT32_TYPE__ u_int32_t;
+typedef __UINT32_TYPE__ uint32_t;
+#else
 typedef	unsigned int u_int32_t; //klee-uclibc/include/sys/types.h
-typedef unsigned long int uint32_t; //stdint.h
-typedef unsigned int size_t;
+typedef unsigned int uint32_t; //stdint.h
+#endif
+
+#ifdef __SIZE_TYPE__
+typedef __SIZE_TYPE__ size_t;
+#else
+typedef unsigned long int size_t;
+#endif
+
 typedef unsigned long uintptr_t;
 
 void klee_make_symbolic(void *addr, size_t nbytes, const char *name);
@@ -268,6 +256,33 @@ void *kzalloc(int size, int gfp)
 	return malloc(size);
 }
 
+/* ----------------------------
+ *  FLOATS
+ * ---------------------------- */
+
+#define FEXP_MASK 0x7f800000
+#define SIGN_MASK 0x80000000
+#define dHighMan 0x000FFFFF
+#define dExpMask 0x7FF00000
+#define dSgnMask 0x80000000
+#define FEXP_MASK 0x7f800000
+#define FFRAC_MASK 0x007fffff
+
+/* All floating-point numbers can be put in one of these categories.  */
+enum
+  {
+    FP_NAN,
+# define FP_NAN FP_NAN
+    FP_INFINITE,
+# define FP_INFINITE FP_INFINITE
+    FP_ZERO,
+# define FP_ZERO FP_ZERO
+    FP_SUBNORMAL,
+# define FP_SUBNORMAL FP_SUBNORMAL
+    FP_NORMAL
+# define FP_NORMAL FP_NORMAL
+  };
+
 int __fpclassifyf ( float x )
 {
    unsigned int iexp;
@@ -305,30 +320,6 @@ typedef struct                   /*      Hex representation of a double.      */
       uint32_t high;
 #endif
       } dHexParts;
-
-
-#if 0
-int
-__signbitf (float __x)
-{
-  __extension__ union { float __f; int __i; } __u = { .__f = __x };
-  return __u.__i < 0;
-}
-
-int
-__signbit (double __x)
-{
-  __extension__ union { double __d; int __i[2]; } __u = { .__d = __x };
-  return __u.__i[1] < 0;
-}
-
-int
-__signbitl (long double __x)
-{
-  __extension__ union { long double __l; int __i[3]; } __u = { .__l = __x };
-  return (__u.__i[2] & 0x8000) != 0;
-}
-#endif
 
 int __signbitf ( float x )
 {
