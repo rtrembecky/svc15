@@ -441,34 +441,50 @@ bool InitializeUninitialized::runOnFunction(Function &F)
       StoreInst *SI = NULL;
       LoadInst *LI = NULL;
 
+      std::vector<Value *> args;
+
       // create new allocainst, declare it symbolic and store it
       // to the original alloca. This way slicer will slice this
       // initialization away if program initialize it manually later
       if (Ty->isSized()) {
-        newAlloca = new AllocaInst(Ty, "alloca_uninitial");
-        CastI = CastInst::CreatePointerCast(newAlloca, Type::getInt8PtrTy(Ctx));
+        // if this is an array allocation, just call klee_make_symbolic on it,
+        // since storing whole symbolic array into it would have soo huge overhead
+        if (AI->isArrayAllocation()) {
+            CastI = CastInst::CreatePointerCast(AI, Type::getInt8PtrTy(Ctx));
+            args.push_back(CastI);
+            args.push_back(ConstantInt::get(size_t_Ty, DL->getTypeAllocSize(Ty)));
+            args.push_back(ConstantExpr::getPointerCast(name, Type::getInt8PtrTy(Ctx)));
 
-        std::vector<Value *> args;
-        args.push_back(CastI);
-        args.push_back(ConstantInt::get(size_t_Ty, DL->getTypeAllocSize(Ty)));
-        args.push_back(ConstantExpr::getPointerCast(name, Type::getInt8PtrTy(Ctx)));
-        CI = CallInst::Create(C, args);
+            CI = CallInst::Create(C, args);
+            CastI->insertAfter(AI);
+            CI->insertAfter(CastI);
+        } else {
+            // when this is not an array allocation, create new symbolic memory and
+            // store it into the allocated memory using normal StoreInst.
+            // That will allow slice away more unneeded allocations
+            newAlloca = new AllocaInst(Ty, "alloca_uninitial");
+            CastI = CastInst::CreatePointerCast(newAlloca, Type::getInt8PtrTy(Ctx));
 
-        LI = new LoadInst(newAlloca);
-        SI = new StoreInst(LI, AI);
+            args.push_back(CastI);
+            args.push_back(ConstantInt::get(size_t_Ty, DL->getTypeAllocSize(Ty)));
+            args.push_back(ConstantExpr::getPointerCast(name, Type::getInt8PtrTy(Ctx)));
+            CI = CallInst::Create(C, args);
 
-        newAlloca->insertAfter(AI);
-        CastI->insertAfter(newAlloca);
-        CI->insertAfter(CastI);
-        LI->insertAfter(CI);
-        SI->insertAfter(LI);
+            LI = new LoadInst(newAlloca);
+            SI = new StoreInst(LI, AI);
+
+            newAlloca->insertAfter(AI);
+            CastI->insertAfter(newAlloca);
+            CI->insertAfter(CastI);
+            LI->insertAfter(CI);
+            SI->insertAfter(LI);
+        }
 
         modified = true;
       }
     }
-  }
 
   delete DL;
   return modified;
+  }
 }
-
