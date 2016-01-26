@@ -449,7 +449,7 @@ bool InitializeUninitialized::runOnFunction(Function &F)
       if (Ty->isSized()) {
         // if this is an array allocation, just call klee_make_symbolic on it,
         // since storing whole symbolic array into it would have soo huge overhead
-        if (AI->isArrayAllocation()) {
+        if (Ty->isArrayTy()) {
             CastI = CastInst::CreatePointerCast(AI, Type::getInt8PtrTy(Ctx));
             args.push_back(CastI);
             args.push_back(ConstantInt::get(size_t_Ty, DL->getTypeAllocSize(Ty)));
@@ -483,8 +483,8 @@ bool InitializeUninitialized::runOnFunction(Function &F)
         modified = true;
       }
     }
+  }
 
   delete DL;
   return modified;
-  }
 }
