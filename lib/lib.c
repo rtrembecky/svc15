@@ -56,7 +56,11 @@ typedef unsigned int uint32_t; //stdint.h
 #ifdef __SIZE_TYPE__
 typedef __SIZE_TYPE__ size_t;
 #else
+#if __x86_64__
 typedef unsigned long int size_t;
+#else
+typedef unsigned int size_t;
+#endif
 #endif
 
 typedef unsigned long uintptr_t;
@@ -72,7 +76,7 @@ int * __attribute__((weak)) __errno_location(void)
 	return &__symbiotic_errno;
 }
 
-size_t __attribute__((weak)) strlen(char *str)
+size_t __attribute__((weak)) strlen(const char *str)
 {
 	size_t len = 0;
 	while (*str) {
@@ -83,7 +87,10 @@ size_t __attribute__((weak)) strlen(char *str)
 	return len;
 }
 
-char * __attribute__((weak)) strdup(char *str)
+extern void *malloc(size_t);
+extern void *memcpy(void *dest, const void *src, size_t n);
+
+char * __attribute__((weak)) strdup(const char *str)
 {
 	size_t len = strlen(str);
 	char *mem = malloc(len);
@@ -98,8 +105,6 @@ _Bool __VERIFIER_nondet__Bool();
 /* non-deterministically return memory or NULL */
 void *__VERIFIER_malloc(size_t size)
 {
-	extern void *malloc(size_t);
-
 	if (__VERIFIER_nondet__Bool())
 		return ((void *) 0);
 
@@ -109,6 +114,7 @@ void *__VERIFIER_malloc(size_t size)
 	return mem;
 }
 
+void *memset(void *s, int c, size_t n);
 void *__VERIFIER_calloc(size_t nmem, size_t size)
 {
 	if (__VERIFIER_nondet__Bool())
@@ -127,8 +133,6 @@ void *__VERIFIER_calloc(size_t nmem, size_t size)
 /* this versions never return NULL */
 void *__VERIFIER_malloc0(size_t size)
 {
-	extern void *malloc(size_t);
-
 	void *mem = malloc(size);
 	// NOTE: klee already assumes that
 	//klee_assume(mem != (void *) 0);
@@ -272,6 +276,7 @@ char *__VERIFIER_nondet_pchar()
 
 void *kzalloc(int size, int gfp)
 {
+	(void) gfp;
 	extern void *malloc(size_t size);
 	return malloc(size);
 }
@@ -352,11 +357,6 @@ int __signbitf ( float x )
    return ((z.lval & SIGN_MASK) != 0);
 }
 
-int __signbitl (long double __x)
-{
-  return __signbit ((double)__x);
-}
-
 int __signbit ( double arg )
 {
       union
@@ -369,6 +369,11 @@ int __signbit ( double arg )
       x.dbl = arg;
       sign = ( ( x.hex.high & dSgnMask ) == dSgnMask ) ? 1 : 0;
       return sign;
+}
+
+int __signbitl (long double __x)
+{
+  return __signbit ((double)__x);
 }
 
 int __fpclassify ( double arg )
