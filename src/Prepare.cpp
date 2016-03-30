@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <cstring>
 #include <vector>
+#include <set>
 
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/BasicBlock.h"
@@ -78,6 +79,8 @@ bool CheckUnsupported::runOnFunction(Function &F) {
 
 namespace {
   class DeleteUndefined : public FunctionPass {
+    std::set<const llvm::Value *> removed_calls;
+
     public:
       static char ID;
 
@@ -204,12 +207,15 @@ bool DeleteUndefined::runOnFunction(Function &F)
         continue;
 
       if (callee->isDeclaration()) {
-       errs() << "Prepare: removing call to '" << name << "' (function is undefined)\n";
-       if (!CI->getType()->isVoidTy()) {
-         replaceCall(CI, M);
-       }
-       CI->eraseFromParent();
-       modified = true;
+        if (removed_calls.insert(callee).second)
+          // print only once
+          errs() << "Prepare: removing calls to '" << name << "' (function is undefined)\n";
+
+        if (!CI->getType()->isVoidTy())
+          replaceCall(CI, M);
+
+        CI->eraseFromParent();
+        modified = true;
       }
     }
   }
