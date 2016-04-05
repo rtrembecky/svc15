@@ -1,5 +1,23 @@
 // GPLv2
 
+#ifdef __UINT32_TYPE__
+typedef __UINT32_TYPE__ u_int32_t;
+typedef __UINT32_TYPE__ uint32_t;
+#else
+typedef	unsigned int u_int32_t; //klee-uclibc/include/sys/types.h
+typedef unsigned int uint32_t; //stdint.h
+#endif
+
+#ifdef __SIZE_TYPE__
+typedef __SIZE_TYPE__ size_t;
+#else
+#if __x86_64__
+typedef unsigned long int size_t;
+#else
+typedef unsigned int size_t;
+#endif
+#endif
+
 _Bool __VERIFIER_nondet__Bool();
 
 /* add our own versions of malloc and calloc */
