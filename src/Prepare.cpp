@@ -18,7 +18,11 @@
 #include "llvm/Pass.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/TypeBuilder.h"
-#include "llvm/Support/InstIterator.h"
+#if (LLVM_VERSION_MINOR >= 8)
+  #include "llvm/IR/InstIterator.h"
+#else
+  #include "llvm/Support/InstIterator.h"
+#endif
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
