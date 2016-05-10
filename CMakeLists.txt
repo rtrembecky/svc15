@@ -4,9 +4,10 @@ project(svc15)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED on)
 
+find_package(LLVM REQUIRED CONFIG)
+
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${LLVM_DIR}")
 
-find_package(LLVM REQUIRED CONFIG)
 include(LLVMConfig)
 include(AddLLVM)
 
